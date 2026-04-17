@@ -1,0 +1,55 @@
+apiVersion: observability.platform/v1
+kind: Tenant
+metadata:
+  name: signal-platform
+  owner: binghua
+  repo: https://github.com/lockezhou18/signal-platform
+  runbook: docs/runbooks/signal-platform.md
+
+deployment:
+  kind: launchd
+  name: com.openclaw.signal-platform
+  host: mac-mini
+
+scrape:
+  endpoint: http://localhost:9095/metrics
+  interval: 30s
+  timeout: 10s
+
+probes:
+  - name: heartbeat
+    type: heartbeat
+    metric: signal_platform_heartbeat_timestamp
+    max_age_seconds: 120
+    severity: warning
+
+  - name: last_run_ok
+    type: e2e
+    metric: signal_platform_e2e_probe_ok
+    threshold: 1
+    comparison: lt
+    severity: critical
+
+  - name: walkforward_regime
+    type: e2e
+    metric: signal_platform_walkforward_status
+    threshold: 1
+    comparison: lt
+    severity: warning
+
+alerts:
+  default_rules:
+    - stale_heartbeat
+    - e2e_probe_failing
+    - scrape_down
+  extra_rules:
+    - yfinance_errors_spike
+    - ic_low_coverage_run
+
+dashboard:
+  template: default_docker_service
+  custom_panels:
+    - factor_ic_heatmap
+    - weekly_watchlist_table
+    - walkforward_sharpe_history
+  refresh: 30s

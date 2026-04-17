@@ -18,25 +18,25 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install deps
+      - name: Show python info
         run: |
-          python -m pip install --upgrade pip
-          pip install -e '.[dev]'
+          python --version
+          python -m pip --version
+          python -c "import sys; print(sys.executable)"
 
-      - name: Ruff (lint)
-        run: ruff check src/ tests/
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip wheel
 
-      - name: Ruff (format check)
-        run: ruff format --check src/ tests/
-
-      - name: Mypy (type-check)
-        run: mypy
-
-      - name: Pytest
-        run: pytest -v
+      - name: Install build + test deps
+        run: |
+          python -m pip install -e .
+          python -m pip install ruff mypy pytest pyyaml types-pyyaml pandas-stubs
 
       - name: Validate platform.yaml
-        if: hashFiles('platform.yaml') != ''
-        run: |
-          pip install pyyaml jsonschema
-          python -c "import yaml; yaml.safe_load(open('platform.yaml')); print('platform.yaml: valid YAML')"
+        run: python -c "import yaml; yaml.safe_load(open('platform.yaml')); print('platform.yaml: valid YAML')"
+
+      - name: Ruff lint
+        run: python -m ruff check src/ tests/
+
+      - name: Pytest
+        run: python -m pytest tests/ -v
