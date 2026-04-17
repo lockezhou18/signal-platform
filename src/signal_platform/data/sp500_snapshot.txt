@@ -1,0 +1,51 @@
+# Minimal large-cap universe snapshot (committed 2026-04-17)
+# Used as fallback / v1 default when full S&P 500 scrape isn't wired.
+# One ticker per line. Lines starting with # are comments.
+#
+# Composition rationale:
+#   - Core index ETFs (also our wheel universe): SPY, QQQ, IWM, DIA
+#   - Mega-cap tech for AI/semi/software coverage
+#   - Memory/storage (SNDK case-study theme; see note-20260411-220300)
+#   - Selected other GICS sectors (financials, healthcare, energy, consumer staples)
+#     to keep cross-sectional factor structure non-degenerate
+# Full S&P 500 membership via Wikipedia scrape is deferred to a later phase.
+SPY
+QQQ
+IWM
+DIA
+AAPL
+MSFT
+GOOGL
+AMZN
+META
+NVDA
+TSLA
+AMD
+AVGO
+TSM
+INTC
+ORCL
+ASML
+MU
+SNDK
+WDC
+CRM
+ADBE
+NFLX
+COST
+WMT
+PG
+JNJ
+UNH
+LLY
+XOM
+CVX
+JPM
+V
+MA
+BRK-B
+HD
+DIS
+BAC
+PEP
+KO

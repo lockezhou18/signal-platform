@@ -42,11 +42,13 @@ coverage.xml
 *.swp
 .DS_Store
 
-data/
+/data/
+/signal-platform-data/
 *.csv
 *.parquet
 *.pkl
 *.joblib
+!src/signal_platform/data/sp500_snapshot.txt
 
 .claude/*
 !.claude/agents/
