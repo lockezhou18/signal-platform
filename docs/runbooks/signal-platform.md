@@ -31,7 +31,7 @@ curl -s http://localhost:9095/healthz
 
 ## Alert: stale_heartbeat
 
-**Meaning:** `signal_platform_heartbeat_timestamp` has not been updated in >120 seconds. The service is either crashed, hung, or networking-blocked.
+**Meaning:** `platform_heartbeat_timestamp` has not been updated in >120 seconds. The service is either crashed, hung, or networking-blocked.
 
 **Investigate:**
 1. `launchctl list | grep signal-platform` — is the process alive?
@@ -45,7 +45,7 @@ curl -s http://localhost:9095/healthz
 
 ## Alert: e2e_probe_failing
 
-**Meaning:** `signal_platform_e2e_probe_ok` is 0. The last full pipeline run (fetch → IC → score → walk-forward → emit) did not complete within the last 7 days.
+**Meaning:** `platform_signal_platform_probe_ok` is 0. The last full pipeline run (fetch → IC → score → walk-forward → emit) did not complete within the last 7 days.
 
 **Investigate:**
 1. `grep pipeline_ /var/log/signal-platform/service.log | tail -50`
@@ -58,7 +58,7 @@ curl -s http://localhost:9095/healthz
 
 ## Alert: walkforward_regime
 
-**Meaning:** `signal_platform_walkforward_status` dropped below 1 (i.e. is at `regime-alert`). The top-decile weekly rebalance strategy is no longer producing Sharpe ≥ 0.5 across windows, OR factor IC signs flipped recently.
+**Meaning:** `platform_signal_platform_walkforward_status` dropped below 1 (i.e. is at `regime-alert`). The top-decile weekly rebalance strategy is no longer producing Sharpe ≥ 0.5 across windows, OR factor IC signs flipped recently.
 
 **Do NOT panic-act.** This is a watchlist annotation, not a live-trading signal. Downstream consumers (quant-advisor, Binghua) should reduce weight on this run's recommendations until the next weekly recomputes a stable status.
 

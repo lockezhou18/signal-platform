@@ -7,6 +7,7 @@ scrape-only workload.
 See `openspec/changes/signal-platform-p1/specs/observability-contract.md`
 for the complete metric set this module must expose.
 """
+
 from __future__ import annotations
 
 import json
@@ -130,6 +131,28 @@ ic_low_coverage_total = Counter(
 )
 
 
+# --- Module-level state (avoids private-API access on prometheus_client) ---
+
+_START_TIME = time.time()
+_last_heartbeat_ts: float = 0.0
+_server: ThreadingHTTPServer | None = None
+_server_thread: threading.Thread | None = None
+_server_lock = threading.Lock()
+
+
+def set_heartbeat(ts: float | None = None) -> float:
+    """Update the heartbeat gauge AND the healthz tracker in lockstep.
+
+    Using a module-level tracker instead of reading the Gauge's internal
+    ``_value.get()`` so we don't depend on prometheus_client internals.
+    """
+    global _last_heartbeat_ts
+    resolved = ts if ts is not None else time.time()
+    heartbeat_timestamp.set(resolved)
+    _last_heartbeat_ts = resolved
+    return resolved
+
+
 class _Handler(BaseHTTPRequestHandler):
     """Minimal metrics + healthz handler."""
 
@@ -151,7 +174,7 @@ class _Handler(BaseHTTPRequestHandler):
                 {
                     "status": "ok",
                     "service": "signal-platform",
-                    "heartbeat_ts": heartbeat_timestamp._value.get(),  # type: ignore[attr-defined]
+                    "heartbeat_ts": _last_heartbeat_ts,
                     "uptime_s": int(time.time() - _START_TIME),
                 }
             ).encode()
@@ -167,41 +190,41 @@ class _Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
 
-_START_TIME = time.time()
-_server: ThreadingHTTPServer | None = None
-_server_thread: threading.Thread | None = None
-
-
 def start_metrics_server(port: int | None = None) -> ThreadingHTTPServer:
     """Start the metrics server on a background thread.
 
     Idempotent: subsequent calls with the already-running server return the
     existing instance. Port defaults to SIGNAL_PLATFORM_METRICS_PORT env or 9095.
+    Thread-safe via ``_server_lock``.
     """
     global _server, _server_thread
 
-    if _server is not None:
-        return _server
+    with _server_lock:
+        if _server is not None:
+            return _server
 
-    resolved_port = port if port is not None else int(os.getenv("SIGNAL_PLATFORM_METRICS_PORT", "9095"))
-    _server = ThreadingHTTPServer(("0.0.0.0", resolved_port), _Handler)
-    _server_thread = threading.Thread(
-        target=_server.serve_forever,
-        name="signal-platform-metrics",
-        daemon=True,
-    )
-    _server_thread.start()
-    logger.info("metrics_server_started", port=resolved_port)
-    return _server
+        resolved_port = (
+            port if port is not None else int(os.getenv("SIGNAL_PLATFORM_METRICS_PORT", "9095"))
+        )
+        _server = ThreadingHTTPServer(("0.0.0.0", resolved_port), _Handler)
+        _server_thread = threading.Thread(
+            target=_server.serve_forever,
+            name="signal-platform-metrics",
+            daemon=True,
+        )
+        _server_thread.start()
+        logger.info("metrics_server_started", port=resolved_port)
+        return _server
 
 
 def stop_metrics_server() -> None:
     """Stop the metrics server if running. Safe to call multiple times."""
     global _server, _server_thread
-    if _server is not None:
-        _server.shutdown()
-        _server.server_close()
-        _server = None
-    if _server_thread is not None:
-        _server_thread.join(timeout=5)
-        _server_thread = None
+    with _server_lock:
+        if _server is not None:
+            _server.shutdown()
+            _server.server_close()
+            _server = None
+        if _server_thread is not None:
+            _server_thread.join(timeout=5)
+            _server_thread = None

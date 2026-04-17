@@ -4,10 +4,11 @@ Every log event is a JSON object with timestamp, level, event, and
 contextual fields. Bind the run_id on service start so every event
 within a run is correlatable.
 """
+
 from __future__ import annotations
 
 import logging
-import os
+import platform
 import uuid
 
 import structlog
@@ -49,7 +50,7 @@ def bind_run_context() -> str:
     structlog.contextvars.bind_contextvars(
         run_id=run_id,
         service="signal-platform",
-        host=os.uname().nodename,
+        host=platform.node(),
     )
     return run_id
 

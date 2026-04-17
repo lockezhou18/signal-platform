@@ -1,4 +1,5 @@
 """CLI entrypoints for ad-hoc runs (separate from the long-running service)."""
+
 from __future__ import annotations
 
 import sys

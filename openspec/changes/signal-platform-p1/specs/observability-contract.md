@@ -30,20 +30,20 @@ scrape:
 probes:
   - name: heartbeat
     type: heartbeat
-    metric: signal_platform_heartbeat_timestamp
+    metric: platform_heartbeat_timestamp
     max_age_seconds: 120
     severity: warning
 
   - name: last_run_ok
     type: e2e
-    metric: signal_platform_e2e_probe_ok
+    metric: platform_signal_platform_probe_ok
     threshold: 1
     comparison: lt
     severity: critical
 
   - name: walkforward_regime
     type: e2e
-    metric: signal_platform_walkforward_status
+    metric: platform_signal_platform_walkforward_status
     threshold: 1
     comparison: lt
     severity: warning
@@ -77,10 +77,10 @@ dashboard:
 
 Per sub-spec requirements (universe-fetcher, factor-ic-engine, composite-scorer, walk-forward-validator). Aggregate:
 
-- `signal_platform_heartbeat_timestamp` — always-on scheduler updates every 30s
-- `signal_platform_e2e_probe_ok` — set to 1 if pipeline completed ≤ 7d ago, 0 otherwise
+- `platform_heartbeat_timestamp` — always-on scheduler updates every 30s
+- `platform_signal_platform_probe_ok` — set to 1 if pipeline completed ≤ 7d ago, 0 otherwise
 - `signal_platform_last_run_status{run_type}` — last run per subsystem
-- `signal_platform_walkforward_status` — 0/1/2 enum
+- `platform_signal_platform_walkforward_status` — 0/1/2 enum
 - Plus the per-subsystem counters/histograms/gauges listed in each spec
 
 ## Failure modes

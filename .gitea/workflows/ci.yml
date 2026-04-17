@@ -39,5 +39,11 @@ jobs:
       - name: Ruff lint
         run: python -m ruff check src/ tests/
 
+      - name: Ruff format check
+        run: python -m ruff format --check src/ tests/
+
+      - name: Mypy type-check
+        run: python -m mypy
+
       - name: Pytest
         run: python -m pytest tests/ -v
