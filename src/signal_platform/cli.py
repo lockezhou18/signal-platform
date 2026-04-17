@@ -45,11 +45,29 @@ def service() -> None:
     type=int,
     help="Rebalance windows to consider for IC residualization.",
 )
-def run_once_cmd(universe: str, horizon: int, top_n: int, lookback_windows: int) -> None:
+@click.option(
+    "--walkforward/--no-walkforward",
+    default=True,
+    help="Run walk-forward validator (slower, but gives status flag).",
+)
+@click.option(
+    "--emit/--no-emit",
+    default=False,
+    help="Write watchlist JSON + markdown to ~/signal-platform-output/",
+)
+def run_once_cmd(
+    universe: str,
+    horizon: int,
+    top_n: int,
+    lookback_windows: int,
+    walkforward: bool,
+    emit: bool,
+) -> None:
     """Run the full screener pipeline once: universe → fetch → IC → score → top-N.
 
-    Prints the ranked watchlist to stdout. Does NOT persist to disk (emit lands
-    in PR 3). Requires network access for the yfinance fetch stage.
+    Prints the ranked watchlist to stdout. With --emit, also writes JSON +
+    markdown to ~/signal-platform-output/<date>.{json,md} annotated with the
+    walk-forward status flag. Requires network for the yfinance fetch stage.
     """
     from signal_platform.pipeline import run_once
 
@@ -58,12 +76,19 @@ def run_once_cmd(universe: str, horizon: int, top_n: int, lookback_windows: int)
         horizon=horizon,
         lookback_windows=lookback_windows,
         top_n=top_n,
+        run_walkforward=walkforward,
+        emit=emit,
     )
 
     click.echo(f"universe={universe} fetched={result.n_fetched}/{len(result.universe)}")
-    click.echo(f"horizon={result.horizon}d  top-{top_n}:\n")
+    click.echo(f"horizon={result.horizon}d  top-{top_n}:")
+    if walkforward:
+        click.echo(f"status={result.walkforward_status.value}  agg={result.walkforward_aggregate}")
+    click.echo("")
     for i, (sym, score) in enumerate(result.top_n, start=1):
         click.echo(f"  {i:>2}. {sym:<6}  score={score:+.3f}")
+    if result.emit_paths is not None:
+        click.echo(f"\nemitted:\n  {result.emit_paths[0]}\n  {result.emit_paths[1]}")
 
 
 if __name__ == "__main__":

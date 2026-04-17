@@ -48,13 +48,20 @@ def _zscore_cross_section(factors_latest: pd.DataFrame) -> pd.DataFrame:
     return (factors_latest - mean) / std
 
 
-def composite_equal_weight(factors_latest: pd.DataFrame) -> ScoringResult:
+def composite_equal_weight(
+    factors_latest: pd.DataFrame,
+    _ic_history_wide: pd.DataFrame | None = None,
+) -> ScoringResult:
     """Baseline composite: z-score each factor across symbols, sum with equal weights.
 
     Explicit anti-pattern reference implementation. Calls to this should be
     accompanied by a comparison run of ``composite_grinold_residualized`` so
     we can see empirically how much a Grinold-aware weighting changes the top
     of the ranking.
+
+    Accepts (and ignores) ``_ic_history_wide`` so the scorer is drop-in
+    compatible with the residualized variant's signature — required by
+    walk_forward_topk's ``scorer`` parameter.
     """
     if factors_latest.empty:
         return ScoringResult(

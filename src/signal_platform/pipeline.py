@@ -29,12 +29,15 @@ import pandas as pd
 
 from signal_platform import metrics
 from signal_platform.data import fetch_universe, get_universe
+from signal_platform.emit.watchlist import build_payload, emit_watchlist
 from signal_platform.factors import compute_all_factors
 from signal_platform.logging import bind_run_context, get_logger
 from signal_platform.signals import (
+    WalkForwardStatus,
     aggregate_ic,
     composite_grinold_residualized,
     cross_sectional_ic,
+    walk_forward_topk,
 )
 
 logger = get_logger(__name__)
@@ -55,6 +58,9 @@ class PipelineResult:
     composite_weights: pd.DataFrame
     horizon: int
     top_n: list[tuple[str, float]]
+    walkforward_status: WalkForwardStatus = WalkForwardStatus.REGIME_ALERT
+    walkforward_aggregate: dict[str, float] | None = None
+    emit_paths: tuple[str, str] | None = None  # (json_path, md_path) if emitted
 
 
 def _stage(name: str, fn: Callable[_P, _T], *args: _P.args, **kwargs: _P.kwargs) -> _T:
@@ -81,12 +87,18 @@ def run_once(
     horizon: int = 5,
     lookback_windows: int = 52,
     top_n: int = 20,
+    run_walkforward: bool = True,
+    emit: bool = False,
 ) -> PipelineResult:
     """Run the full screener pipeline once and return the result.
 
     Side effects: updates Prometheus metrics. Logs every stage with run_id.
-    Does NOT emit a watchlist file (PR 3) — caller decides what to do with
-    the returned score.
+    If ``emit=True``, also writes a watchlist JSON + markdown pair to
+    ``~/signal-platform-output/<date>.{json,md}`` annotated with the
+    walk-forward status flag.
+
+    Walk-forward is expensive (N windows × IC computation per window). Default
+    is enabled, but can be toggled off for quick ad-hoc top-N inspection.
     """
     run_id = bind_run_context()
     logger.info(
@@ -136,6 +148,42 @@ def run_once(
     top_list: list[tuple[str, float]] = [(str(sym), float(val)) for sym, val in top_series.items()]
     logger.info("pipeline_top_n", top=top_list[:5], total_ranked=len(score_result.score))
 
+    # Optional walk-forward validation to determine status flag
+    wf_status = WalkForwardStatus.REGIME_ALERT
+    wf_aggregate: dict[str, float] = {}
+    if run_walkforward:
+        wf_result = _stage(
+            "walkforward",
+            walk_forward_topk,
+            fetched,
+            train_months=24,
+            test_months=3,
+            top_k_pct=0.2,
+            horizon=horizon,
+        )
+        wf_status = wf_result.status
+        wf_aggregate = wf_result.aggregate
+        logger.info(
+            "pipeline_walkforward",
+            status=wf_status.value,
+            **{k: v for k, v in wf_aggregate.items() if isinstance(v, int | float)},
+        )
+
+    emit_paths: tuple[str, str] | None = None
+    if emit:
+        payload = build_payload(
+            universe_name=universe_name,
+            universe_size=len(universe),
+            n_fetched=len(fetched),
+            horizon=horizon,
+            top_n=top_list,
+            status=wf_status,
+            walkforward_aggregate=wf_aggregate,
+            composite_weights=score_result.weights,
+        )
+        json_path, md_path = emit_watchlist(payload)
+        emit_paths = (str(json_path), str(md_path))
+
     # Only mark e2e probe ok after the whole chain succeeded
     metrics.e2e_probe_ok.set(1)
     metrics.set_heartbeat()
@@ -149,4 +197,7 @@ def run_once(
         composite_weights=score_result.weights,
         horizon=horizon,
         top_n=top_list,
+        walkforward_status=wf_status,
+        walkforward_aggregate=wf_aggregate or None,
+        emit_paths=emit_paths,
     )
