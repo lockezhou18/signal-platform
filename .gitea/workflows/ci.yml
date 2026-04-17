@@ -29,8 +29,8 @@ jobs:
 
       - name: Install build + test deps
         run: |
-          python -m pip install -e .
-          python -m pip install ruff mypy pytest pyyaml types-pyyaml pandas-stubs
+          python -m pip install -e '.[dev]'
+          # pyyaml comes via project deps; types-pyyaml + pandas-stubs via [dev]
 
       - name: Validate platform.yaml
         run: |

@@ -23,7 +23,10 @@ dependencies = [
 dev = [
     "pytest>=8.0",
     "pytest-cov>=5.0",
-    "ruff>=0.5",
+    # Ruff format rules change across minor versions — pin to 0.15.x to avoid
+    # local-vs-CI disagreement (caught in CI run #7 where local ruff 0.5 said
+    # formatted but CI's 0.15.11 flagged a long-line reformat).
+    "ruff>=0.15,<0.16",
     "mypy>=1.10",
     "types-pyyaml",
     "pandas-stubs",

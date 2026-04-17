@@ -69,9 +69,7 @@ def get_universe(name: str = "sp500") -> list[str]:
         return sorted(_WHEEL_EXPLICIT)
 
     if normalized not in _ALIAS_TO_SLICE:
-        raise ValueError(
-            f"unknown universe '{name}'. Known: {sorted(_ALIAS_TO_SLICE.keys())}"
-        )
+        raise ValueError(f"unknown universe '{name}'. Known: {sorted(_ALIAS_TO_SLICE.keys())}")
 
     snapshot = _load_snapshot()
     sel = _ALIAS_TO_SLICE[normalized]
