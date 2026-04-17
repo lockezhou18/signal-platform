@@ -12,6 +12,7 @@ dependencies = [
     "numpy>=1.26",
     "scipy>=1.13",
     "yfinance>=0.2.50",
+    "pyarrow>=15.0",
     "pyyaml>=6.0",
     "prometheus-client>=0.20",
     "structlog>=24.1",
