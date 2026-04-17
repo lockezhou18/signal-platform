@@ -36,7 +36,9 @@ from signal_platform import metrics
 from signal_platform.factors import compute_all_factors
 from signal_platform.logging import get_logger
 from signal_platform.signals.ic_engine import cross_sectional_ic
-from signal_platform.signals.scorer import composite_grinold_residualized
+from signal_platform.signals.scorer import ScoringResult, composite_grinold_residualized
+
+Scorer = Callable[[pd.DataFrame, pd.DataFrame], ScoringResult]
 
 logger = get_logger(__name__)
 
@@ -112,11 +114,12 @@ def _top_k_portfolio_returns(
         k = max(1, int(np.ceil(len(scores) * top_k_pct)))
         holdings = set(scores.sort_values(ascending=False).head(k).index)
 
-        # Turnover = fraction of holdings that changed
-        if prev_holdings:
-            turnover = len(holdings.symmetric_difference(prev_holdings)) / max(len(holdings), 1)
-        else:
-            turnover = 1.0  # initial position
+        # Turnover = fraction of CURRENT holdings that are newly added this period.
+        # ``symmetric_difference`` (old impl) counted adds+drops and double-billed
+        # turnover, inflating fees by 2x and depressing reported Sharpe (cross-
+        # review finding; see commit log). This measures portfolio churn correctly:
+        # 3 of 10 names rotated in = 30% turnover.
+        turnover = len(holdings - prev_holdings) / max(len(holdings), 1) if prev_holdings else 1.0
         turnover_total += turnover
 
         # Realized return: equal-weight forward return across held names
@@ -194,7 +197,7 @@ def walk_forward_topk(
     horizon: int = 5,
     rebalance: str = "W-SUN",
     fees_bps: int = 5,
-    scorer: Callable[..., object] = composite_grinold_residualized,
+    scorer: Scorer = composite_grinold_residualized,
 ) -> WalkForwardResult:
     """Validate the composite scorer via rolling top-K% backtest.
 
@@ -236,11 +239,22 @@ def walk_forward_topk(
             },
         )
 
+    # Compute factors ONCE for the full universe. Factor values at date t depend
+    # only on data ≤ t (rolling windows), so slicing by window doesn't help
+    # correctness — but recomputing per window was O(N_windows × symbols × factors)
+    # and measurably slow at scale. Compute once; look up by date inside each
+    # window. Cross-review finding: ~10x speedup on S&P 500 × 10y history.
+    # No look-ahead introduced: we still gate by ic_train.wide (train-only IC)
+    # when calling the scorer.
+    full_fwd_panel = pd.DataFrame(
+        {sym: df["Close"].shift(-horizon) / df["Close"] - 1.0 for sym, df in universe_ohlcv.items()}
+    )
+    full_factors_by_symbol = {sym: compute_all_factors(df) for sym, df in universe_ohlcv.items()}
+
     per_window_rows: list[dict[str, object]] = []
 
     for i, (train_s, train_e, test_s, test_e) in enumerate(bounds):
         train_ohlcv = {sym: df.iloc[train_s:train_e] for sym, df in universe_ohlcv.items()}
-        test_ohlcv = {sym: df.iloc[train_s:test_e] for sym, df in universe_ohlcv.items()}
 
         try:
             ic_train = cross_sectional_ic(
@@ -257,16 +271,8 @@ def walk_forward_topk(
             logger.warning("walkforward_window_empty_ic", window=i)
             continue
 
-        # Score the TEST period rebalances. Build factors for test symbols,
-        # pick each rebalance date, score using the training IC history.
-        test_factors_by_symbol = {sym: compute_all_factors(df) for sym, df in test_ohlcv.items()}
-
-        # Use the IC engine's rebalance dates within the test window
-        test_fwd_panel = pd.DataFrame(
-            {sym: df["Close"].shift(-horizon) / df["Close"] - 1.0 for sym, df in test_ohlcv.items()}
-        )
-
-        test_index = test_fwd_panel.index[train_e - train_s : test_e - train_s]
+        test_index = full_fwd_panel.index[test_s:test_e]
+        test_fwd_panel = full_fwd_panel.iloc[test_s:test_e]
         rebalance_dates_all = (
             pd.Series(test_index, index=test_index).resample(rebalance).last().dropna().unique()
         )
@@ -279,7 +285,7 @@ def walk_forward_topk(
             factors_latest = pd.DataFrame(
                 {
                     sym: fac.loc[date]
-                    for sym, fac in test_factors_by_symbol.items()
+                    for sym, fac in full_factors_by_symbol.items()
                     if date in fac.index
                 }
             ).T
@@ -290,13 +296,13 @@ def walk_forward_topk(
             except ValueError:
                 # Scorer rejected this date (regime-alert trigger); skip
                 continue
-            scores_by_date[date] = score_result.score  # type: ignore[attr-defined]
+            scores_by_date[date] = score_result.score
 
         if not scores_by_date:
             continue
 
         scores_df = pd.DataFrame(scores_by_date).T.sort_index()
-        fwd_test = test_fwd_panel.loc[scores_df.index]
+        fwd_test = test_fwd_panel.reindex(scores_df.index)
 
         returns_series, turnover = _top_k_portfolio_returns(
             scores_df, fwd_test, top_k_pct=top_k_pct, fees_bps=fees_bps

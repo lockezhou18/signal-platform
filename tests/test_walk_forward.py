@@ -196,3 +196,66 @@ def test_walk_forward_empty_universe_raises() -> None:
 
     with pytest.raises(ValueError, match="empty universe_ohlcv"):
         walk_forward_topk({})
+
+
+def test_walk_forward_no_look_ahead_on_completed_windows() -> None:
+    """Windows that close before some date D must produce identical P&L
+    regardless of what happens to the data after D.
+
+    Mutate the Close series in the second half of the universe to pure
+    garbage. Windows whose ``test_end`` date falls before the mutation
+    point should come back bit-identical to the clean run; anything
+    different means factor computation or IC training leaked future data.
+    """
+    clean = _long_universe(n_symbols=15, n_days=1260, seed=17, drift=0.0005)
+    mutation_start = 700  # any day after a few full train+test cycles
+
+    mutated: dict[str, pd.DataFrame] = {}
+    for sym, df in clean.items():
+        copy = df.copy()
+        # Obliterate the back half: set Close to a single garbage constant so
+        # factor rolling-window calcs + forward returns after this point are
+        # completely different from the clean run.
+        copy.iloc[mutation_start:, copy.columns.get_loc("Close")] = 9999.0
+        mutated[sym] = copy
+
+    r_clean = walk_forward_topk(
+        clean,
+        train_months=12,
+        test_months=3,
+        top_k_pct=0.3,
+        horizon=5,
+        scorer=composite_equal_weight,
+    )
+    r_mutated = walk_forward_topk(
+        mutated,
+        train_months=12,
+        test_months=3,
+        top_k_pct=0.3,
+        horizon=5,
+        scorer=composite_equal_weight,
+    )
+
+    # Windows whose test_end is strictly before the mutation point should
+    # match exactly. Compare by test_end date rather than window index because
+    # the mutated run might drop windows that land on garbage-only data.
+    mutation_date = clean["S00"].index[mutation_start].date()
+    clean_pre = r_clean.per_window[
+        pd.to_datetime(r_clean.per_window["test_end"]).dt.date < mutation_date
+    ]
+    mutated_pre = r_mutated.per_window[
+        pd.to_datetime(r_mutated.per_window["test_end"]).dt.date < mutation_date
+    ]
+
+    assert len(clean_pre) >= 1, "need at least one pre-mutation window to compare"
+    assert len(clean_pre) == len(mutated_pre), (
+        "pre-mutation window count differs — future data is leaking into "
+        "window selection or factor computation"
+    )
+    # Sharpe, return, max_dd should match exactly for pre-mutation windows
+    for col in ("sharpe", "return_pct", "max_dd_pct"):
+        pd.testing.assert_series_equal(
+            clean_pre[col].reset_index(drop=True),
+            mutated_pre[col].reset_index(drop=True),
+            check_names=False,
+        )
