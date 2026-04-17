@@ -118,14 +118,24 @@ def cross_sectional_ic(
         return CrossSectionalICResult(long=empty_long, wide=pd.DataFrame(), horizon=horizon)
 
     # Anchor rebalance calendar on the union of all observed dates.
-    # Resampling 'W-SUN' over the full index gives us period-end timestamps
-    # that we snap to the nearest prior trading day available in the index.
+    # For W-SUN (or any freq), pandas resample labels each bucket by its period-end
+    # timestamp (a Sunday), which isn't a trading day. Before: we intersected
+    # period-end stamps with the business-day index and got an empty set — the
+    # fallback ran and we rebalanced DAILY, producing 1256 overlapping samples
+    # on a 5y window instead of ~260 weekly ones. The "daily" numbers looked fine
+    # but silently overstated statistical significance (overlapping h-day forward
+    # returns are not independent). Fix: pick the LAST trading day within each
+    # resample bucket, not the period-end label.
     combined_index = fwd_panel.index
-    resampled = pd.Series(index=combined_index, dtype=float).resample(rebalance).last()
-    rebalance_dates = resampled.index.intersection(combined_index)
+    date_series = pd.Series(combined_index, index=combined_index)
+    rebalance_dates = pd.DatetimeIndex(date_series.resample(rebalance).last().dropna().unique())
     if rebalance_dates.empty:
-        # Fallback: use every date present (for very short test series).
-        rebalance_dates = combined_index
+        logger.warning(
+            "xsec_ic_rebalance_fallback",
+            reason="no dates after resample; using full combined_index",
+            freq=rebalance,
+        )
+        rebalance_dates = pd.DatetimeIndex(combined_index)
 
     rows: list[dict[str, object]] = []
 
