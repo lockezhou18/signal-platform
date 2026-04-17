@@ -22,15 +22,49 @@ _SNAPSHOT_PACKAGE = "signal_platform.data"
 _SNAPSHOT_FILE = "sp500_snapshot.txt"
 
 # Universes recognised by get_universe(). Names map to snapshot-derived lists;
-# more specialised universes (sector slices, QQQ-100 union, etc.) added in
-# later phases as the need appears.
+# more specialised universes (sector slices, Russell variants) can be added
+# the same way QQQ-100 was: explicit ticker list, derive from snapshot where
+# overlap exists.
 _ALIAS_TO_SLICE: dict[str, slice | None] = {
     "sp500": None,  # full snapshot
     "mega": slice(0, 15),  # top 15 from snapshot = core index + mega-cap tech
     "wheel": None,  # placeholder; resolved by explicit list below
+    "qqq": None,  # placeholder; resolved by explicit list below
 }
 
 _WHEEL_EXPLICIT = ["SPY", "QQQ", "IWM", "MSFT"]
+
+# QQQ-100 (Nasdaq-100) explicit snapshot — the heavy-weight AI/tech names.
+# Derived from public index membership; not a live scrape. Overlap with
+# sp500 snapshot is intentional (NVDA, MSFT, etc.). Keeping this lean for
+# P1 — a later phase can pull the full 100-name list via a scrape similar
+# to the deferred Wikipedia path for sp500.
+_QQQ_EXPLICIT = [
+    "AAPL",
+    "MSFT",
+    "NVDA",
+    "AMZN",
+    "META",
+    "GOOGL",
+    "TSLA",
+    "AVGO",
+    "COST",
+    "ADBE",
+    "NFLX",
+    "AMD",
+    "ASML",
+    "ORCL",
+    "MU",
+    "SNDK",
+    "INTC",
+    "CRM",
+    "TSM",
+    "QCOM",
+    "TXN",
+    "LIN",
+    "PEP",
+    "ISRG",
+]
 
 
 def _load_snapshot() -> list[str]:
@@ -59,6 +93,7 @@ def get_universe(name: str = "sp500") -> list[str]:
       - "sp500": full committed snapshot (~40 names in P1)
       - "mega": top 15 mega-caps (fast iteration / smoke tests)
       - "wheel": explicit SPY/QQQ/IWM/MSFT set
+      - "qqq": Nasdaq-100 subset (~24 names in P1)
 
     Unknown names raise ValueError; no silent fallback.
     """
@@ -67,6 +102,9 @@ def get_universe(name: str = "sp500") -> list[str]:
     if normalized == "wheel":
         logger.info("universe_loaded", name=normalized, size=len(_WHEEL_EXPLICIT))
         return sorted(_WHEEL_EXPLICIT)
+    if normalized == "qqq":
+        logger.info("universe_loaded", name=normalized, size=len(_QQQ_EXPLICIT))
+        return sorted(set(_QQQ_EXPLICIT))
 
     if normalized not in _ALIAS_TO_SLICE:
         raise ValueError(f"unknown universe '{name}'. Known: {sorted(_ALIAS_TO_SLICE.keys())}")

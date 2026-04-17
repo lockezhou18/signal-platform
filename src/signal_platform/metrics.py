@@ -29,6 +29,30 @@ from signal_platform.logging import get_logger
 
 logger = get_logger(__name__)
 
+__all__ = [
+    # Registry + contracted gauges
+    "REGISTRY",
+    "e2e_probe_ok",
+    "walkforward_status",
+    # Subsystem metrics
+    "cache_hit_total",
+    "composite_weight",
+    "dropped_factor_total",
+    "factor_ic",
+    "factor_ic_mean",
+    "ic_low_coverage_total",
+    "last_run_duration_seconds",
+    "last_run_status",
+    "universe_size",
+    "yfinance_errors_total",
+    # Heartbeat helpers (public write path)
+    "get_last_heartbeat_ts",
+    "set_heartbeat",
+    # Server
+    "start_metrics_server",
+    "stop_metrics_server",
+]
+
 REGISTRY = CollectorRegistry()
 
 # --- Contracted metrics (observability platform schema v1) ---
