@@ -19,20 +19,20 @@ scrape:
 probes:
   - name: heartbeat
     type: heartbeat
-    metric: signal_platform_heartbeat_timestamp
+    metric: platform_heartbeat_timestamp
     max_age_seconds: 120
     severity: warning
 
   - name: last_run_ok
     type: e2e
-    metric: signal_platform_e2e_probe_ok
+    metric: platform_signal_platform_probe_ok
     threshold: 1
     comparison: lt
     severity: critical
 
   - name: walkforward_regime
     type: e2e
-    metric: signal_platform_walkforward_status
+    metric: platform_signal_platform_walkforward_status
     threshold: 1
     comparison: lt
     severity: warning

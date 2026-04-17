@@ -30,22 +30,25 @@ logger = get_logger(__name__)
 
 REGISTRY = CollectorRegistry()
 
-# --- Heartbeat + e2e probes (contracted with observability platform) ---
+# --- Contracted metrics (observability platform schema v1) ---
+# Names follow the 'platform_*' prefix convention enforced by
+# obs/schema/platform-v1.json. These are the metrics the platform SCRAPES;
+# tenant-internal metrics below use 'signal_platform_*' prefix.
 
 heartbeat_timestamp = Gauge(
-    "signal_platform_heartbeat_timestamp",
+    "platform_heartbeat_timestamp",
     "Unix timestamp of the most recent scheduler tick.",
     registry=REGISTRY,
 )
 
 e2e_probe_ok = Gauge(
-    "signal_platform_e2e_probe_ok",
+    "platform_signal_platform_probe_ok",
     "1 if the full pipeline (fetch->IC->score->walkforward->emit) completed within last 7 days, else 0.",
     registry=REGISTRY,
 )
 
 walkforward_status = Gauge(
-    "signal_platform_walkforward_status",
+    "platform_signal_platform_walkforward_status",
     "Walk-forward validator status. 0=regime-alert, 1=measurement-only, 2=validated.",
     registry=REGISTRY,
 )

@@ -29,7 +29,7 @@ def test_metrics_server_starts_and_serves_metrics() -> None:
         body = resp.read().decode()
 
     assert resp.status == 200
-    assert "signal_platform_heartbeat_timestamp" in body
+    assert "platform_heartbeat_timestamp" in body
     assert "signal_platform_universe_size 500.0" in body
 
 
