@@ -62,7 +62,7 @@ Status is attached to the weekly watchlist emit. Downstream consumers (the quant
 
 - `signal_platform_walkforward_sharpe{window_type=mean|median|latest}` gauge
 - `signal_platform_walkforward_windows_total{outcome=passed|failed}` counter
-- `signal_platform_walkforward_status` gauge (enum encoded: 0=regime-alert, 1=measurement-only, 2=validated)
+- `platform_signal_platform_walkforward_status` gauge (enum encoded: 0=regime-alert, 1=measurement-only, 2=validated) — name matches the observability platform's `platform_*` probe prefix; this is the metric scraped by the observability tenant contract
 - Status change events logged at INFO with before/after values
 
 ## Testing

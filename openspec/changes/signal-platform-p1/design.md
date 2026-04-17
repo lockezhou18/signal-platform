@@ -74,14 +74,14 @@ Exposed on `:9095/metrics` (Prometheus text format):
 
 | Metric | Type | Labels | Meaning |
 |---|---|---|---|
-| `signal_platform_heartbeat_timestamp` | gauge | — | Unix ts, updated every 30s by scheduler |
+| `platform_heartbeat_timestamp` | gauge | — | Unix ts, updated every 30s by scheduler. **Write only via `metrics.set_heartbeat()`** — direct gauge access leaves `/healthz` stale. |
 | `signal_platform_last_run_status` | gauge | `run_type` ∈ {ic, score, walkforward, emit} | 1 if last run succeeded, 0 otherwise |
 | `signal_platform_last_run_duration_seconds` | gauge | `run_type` | duration of last run |
 | `signal_platform_factor_ic` | histogram | `factor`, `horizon` | IC distribution across symbols |
 | `signal_platform_universe_size` | gauge | — | N symbols in last universe fetch |
 | `signal_platform_yfinance_errors_total` | counter | `error_type` | retry exhaustion events |
 
-**E2E probe:** `signal_platform_e2e_probe_ok` = 1 if the full pipeline (fetch → IC → score → walk-forward → emit) completed successfully within the last 7 days.
+**E2E probe:** `platform_signal_platform_probe_ok` = 1 if the full pipeline (fetch → IC → score → walk-forward → emit) completed successfully within the last 7 days.
 
 ## Sequencing (Principle V — incremental verification)
 

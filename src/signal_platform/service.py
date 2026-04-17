@@ -18,6 +18,10 @@ from signal_platform.logging import bind_run_context, configure_logging, get_log
 
 logger = get_logger(__name__)
 
+# Heartbeat cadence. MUST stay strictly less than
+# ``platform.yaml::probes[heartbeat].max_age_seconds`` or the observability
+# platform will flap the probe. Current tenant manifest: max_age=120, so
+# 30s gives us a 4× margin. If you change either, change both.
 HEARTBEAT_INTERVAL_SECONDS = 30
 
 _shutdown_event = threading.Event()

@@ -29,7 +29,7 @@ Phase 1 also **establishes the engineering contract** (tenant-compatible, observ
 - Walk-forward stability report with ≥10 non-overlapping windows over 5y
 - Composite scorer implements Grinold step 9 (residualization); explicit A/B vs equal-weight
 - Top-20 weekly watchlist emitted to `~/signal-platform-output/` or equivalent, status-flagged
-- `/metrics` endpoint exposes `signal_platform_heartbeat_timestamp`, `signal_platform_last_run_status`, `signal_platform_factor_ic_histogram`
+- `/metrics` endpoint exposes `platform_heartbeat_timestamp`, `signal_platform_last_run_status`, `signal_platform_factor_ic` (histogram)
 - Registered as tenant in observability platform (manifest + `obs register` run)
 - CI green: ruff + ruff-format + mypy + pytest, all clean
 - **Decision gate on validation bar:** if walk-forward top-decile weekly rebalance Sharpe ≥ 0.8 on ≥10 windows → watchlist flagged `validated`; if 0.5–0.8 → `measurement-only`; < 0.5 → block emit, write failure analysis

@@ -17,6 +17,9 @@ scrape:
   timeout: 10s
 
 probes:
+  # max_age_seconds MUST be strictly greater than
+  # src/signal_platform/service.py::HEARTBEAT_INTERVAL_SECONDS
+  # or the probe will flap. Currently 120s (max_age) vs 30s (interval) = 4x margin.
   - name: heartbeat
     type: heartbeat
     metric: platform_heartbeat_timestamp

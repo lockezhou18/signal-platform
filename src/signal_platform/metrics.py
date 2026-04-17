@@ -35,8 +35,13 @@ REGISTRY = CollectorRegistry()
 # Names follow the 'platform_*' prefix convention enforced by
 # obs/schema/platform-v1.json. These are the metrics the platform SCRAPES;
 # tenant-internal metrics below use 'signal_platform_*' prefix.
+#
+# `_heartbeat_timestamp` is deliberately private: the public path is
+# `set_heartbeat()`, which keeps the Prometheus gauge and the `/healthz`
+# `_last_heartbeat_ts` tracker in lockstep. Callers that touch the gauge
+# directly would make `/healthz` lie about heartbeat freshness.
 
-heartbeat_timestamp = Gauge(
+_heartbeat_timestamp = Gauge(
     "platform_heartbeat_timestamp",
     "Unix timestamp of the most recent scheduler tick.",
     registry=REGISTRY,
@@ -143,14 +148,20 @@ _server_lock = threading.Lock()
 def set_heartbeat(ts: float | None = None) -> float:
     """Update the heartbeat gauge AND the healthz tracker in lockstep.
 
-    Using a module-level tracker instead of reading the Gauge's internal
-    ``_value.get()`` so we don't depend on prometheus_client internals.
+    This is the ONLY supported path for updating the heartbeat.
+    Calling ``_heartbeat_timestamp.set(...)`` directly would update the
+    Prometheus gauge but leave ``/healthz`` reporting a stale timestamp.
     """
     global _last_heartbeat_ts
     resolved = ts if ts is not None else time.time()
-    heartbeat_timestamp.set(resolved)
+    _heartbeat_timestamp.set(resolved)
     _last_heartbeat_ts = resolved
     return resolved
+
+
+def get_last_heartbeat_ts() -> float:
+    """Read the most recently set heartbeat timestamp (for tests + diagnostics)."""
+    return _last_heartbeat_ts
 
 
 class _Handler(BaseHTTPRequestHandler):

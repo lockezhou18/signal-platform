@@ -7,6 +7,7 @@ signal.signal would test mock behavior, not the real shutdown path.
 
 from __future__ import annotations
 
+import os
 import signal
 import subprocess
 import sys
@@ -39,6 +40,7 @@ def test_service_responds_then_terminates_on_sigterm() -> None:
         cwd=str(REPO_ROOT),
         env={
             "PATH": "/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin",
+            "HOME": os.path.expanduser("~"),
             "SIGNAL_PLATFORM_METRICS_PORT": "19098",
             "PYTHONPATH": str(REPO_ROOT / "src"),
         },
